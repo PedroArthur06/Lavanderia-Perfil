@@ -50,4 +50,32 @@ export class OrderService {
       orderBy: { createdAt: "desc" },
     });
   }
+
+  async updateStatus(orderId: number, newStatus: string) {
+    // Validar status permitidos
+    const allowedStatuses = [
+      "PENDING",
+      "WASHING",
+      "DRYING",
+      "IRONING",
+      "READY",
+      "DELIVERED",
+    ];
+
+    if (!allowedStatuses.includes(newStatus)) {
+      throw new Error(`Status inválido. Use: ${allowedStatuses.join(", ")}`);
+    }
+
+    // Atualizar pedido
+    const order = await prisma.order.update({
+      where: { id: orderId },
+      data: { status: newStatus },
+      include: {
+        customer: true,
+        items: true,
+      },
+    });
+
+    return order;
+  }
 }

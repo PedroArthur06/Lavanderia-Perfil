@@ -28,4 +28,21 @@ export class OrderController {
     const orders = await orderService.findAll();
     return res.json(orders);
   }
+
+  async updateStatus(req: Request, res: Response) {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    // Validação básica
+    if (!status) {
+      return res.status(400).json({ error: "Status é obrigatório" });
+    }
+
+    try {
+      const order = await orderService.updateStatus(Number(id), status);
+      return res.json(order);
+    } catch (error: any) {
+      return res.status(400).json({ error: error.message });
+    }
+  }
 }
