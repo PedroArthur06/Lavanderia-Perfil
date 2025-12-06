@@ -4,6 +4,12 @@ import { Order } from "../types";
 import { Clock, Shirt, CheckCircle, Package, Plus, Search } from "lucide-react";
 import logoImg from "../assets/logo.png";
 import { NewOrderModal } from "../components/NewOrderModal";
+import {
+  DragDropContext,
+  Droppable,
+  Draggable,
+  DropResult,
+} from "react-beautiful-dnd";
 
 const STATUS_MAP: Record<string, { label: string; color: string; icon: any }> =
   {
@@ -72,6 +78,58 @@ export function Dashboard() {
     });
   const [isModalOpen, setIsModalOpen] = useState(false);
 
+  // Função para lidar com drag-and-drop
+  async function handleDragEnd(result: DropResult) {
+    const { destination, source, draggableId } = result;
+
+    // Se não há destino ou se soltou no mesmo lugar
+    if (
+      !destination ||
+      (destination.droppableId === source.droppableId &&
+        destination.index === source.index)
+    ) {
+      return;
+    }
+
+    // Se moveu para a mesma coluna, não faz nada
+    if (destination.droppableId === source.droppableId) {
+      return;
+    }
+
+    // Mapear droppableId para status do backend
+    type OrderStatus =
+      | "PENDING"
+      | "WASHING"
+      | "DRYING"
+      | "IRONING"
+      | "READY"
+      | "DELIVERED";
+    const statusMap: Record<string, OrderStatus> = {
+      PENDING: "PENDING",
+      WASHING: "WASHING",
+      READY: "READY",
+      DELIVERED: "DELIVERED",
+    };
+
+    const newStatus = statusMap[destination.droppableId];
+    const orderId = Number(draggableId);
+
+    // Atualização otimista da UI
+    const updatedOrders = orders.map((order) =>
+      order.id === orderId ? { ...order, status: newStatus } : order
+    );
+    setOrders(updatedOrders);
+
+    try {
+      // Atualizar no backend
+      await api.patch(`/orders/${orderId}/status`, { status: newStatus });
+    } catch (error) {
+      console.error("Erro ao atualizar status:", error);
+      // Reverter em caso de erro
+      loadOrders();
+    }
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       {/* Cabeçalho da Marca */}
@@ -116,28 +174,32 @@ export function Dashboard() {
       </header>
 
       {/* Área do Kanban */}
-      <main className="flex-1 p-6 overflow-x-auto">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 min-w-[1000px] md:min-w-0">
-          <KanbanColumn
-            title="Fila de Entrada"
-            orders={getOrdersByStatus("PENDING")}
-            statusKey="PENDING"
-          />
-          <KanbanColumn
-            title="Lavando / Secando"
-            orders={getOrdersByStatus("WASHING")}
-            statusKey="WASHING"
-          />
-          <KanbanColumn
-            title="Pronto p/ Retirada"
-            orders={getOrdersByStatus("READY")}
-            statusKey="READY"
-          />
-          <KanbanColumn
-            title="Histórico Recente"
-            orders={getOrdersByStatus("DELIVERED")}
-            statusKey="DELIVERED"
-          />
+      <main className="flex-1 p-6">
+        <div className="overflow-x-auto">
+          <DragDropContext onDragEnd={handleDragEnd}>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 min-w-[1000px] md:min-w-0">
+              <KanbanColumn
+                title="Fila de Entrada"
+                orders={getOrdersByStatus("PENDING")}
+                statusKey="PENDING"
+              />
+              <KanbanColumn
+                title="Lavando / Secando"
+                orders={getOrdersByStatus("WASHING")}
+                statusKey="WASHING"
+              />
+              <KanbanColumn
+                title="Pronto p/ Retirada"
+                orders={getOrdersByStatus("READY")}
+                statusKey="READY"
+              />
+              <KanbanColumn
+                title="Histórico Recente"
+                orders={getOrdersByStatus("DELIVERED")}
+                statusKey="DELIVERED"
+              />
+            </div>
+          </DragDropContext>
         </div>
       </main>
       <NewOrderModal
@@ -178,52 +240,77 @@ function KanbanColumn({
         </span>
       </div>
 
-      <div className="flex-1 bg-gray-100 rounded-b-lg p-2 space-y-3 min-h-[500px]">
-        {orders.map((order) => (
+      <Droppable droppableId={statusKey}>
+        {(provided, snapshot) => (
           <div
-            key={order.id}
-            className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 hover:shadow-md hover:border-brand-blue transition-all cursor-pointer group"
+            ref={provided.innerRef}
+            {...provided.droppableProps}
+            className={`flex-1 rounded-b-lg p-2 space-y-3 min-h-[500px] transition-colors ${
+              snapshot.isDraggingOver ? "bg-blue-50" : "bg-gray-100"
+            }`}
           >
-            <div className="flex justify-between items-start mb-2">
-              <span className="font-mono text-xs font-bold text-gray-400">
-                #{order.id.toString().padStart(4, "0")}
-              </span>
-              <span className="text-sm font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded">
-                R$ {order.total.toFixed(2)}
-              </span>
-            </div>
+            {orders.map((order, index) => (
+              <Draggable
+                key={order.id}
+                draggableId={String(order.id)}
+                index={index}
+              >
+                {(provided, snapshot) => (
+                  <div
+                    ref={provided.innerRef}
+                    {...provided.draggableProps}
+                    {...provided.dragHandleProps}
+                    className={`bg-white p-4 rounded-lg shadow-sm border border-gray-200 hover:shadow-md hover:border-brand-blue transition-all cursor-grab active:cursor-grabbing group ${
+                      snapshot.isDragging
+                        ? "shadow-lg ring-2 ring-brand-blue"
+                        : ""
+                    }`}
+                  >
+                    <div className="flex justify-between items-start mb-2">
+                      <span className="font-mono text-xs font-bold text-gray-400">
+                        #{order.id.toString().padStart(4, "0")}
+                      </span>
+                      <span className="text-sm font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded">
+                        R$ {order.total.toFixed(2)}
+                      </span>
+                    </div>
 
-            <p className="font-semibold text-gray-800 mb-1 truncate">
-              {order.customer.name}
-            </p>
+                    <p className="font-semibold text-gray-800 mb-1 truncate">
+                      {order.customer.name}
+                    </p>
 
-            <div className="space-y-1 mb-3">
-              {order.items.slice(0, 3).map((item) => (
-                <div
-                  key={item.id}
-                  className="text-xs text-gray-500 flex justify-between"
-                >
-                  <span>
-                    {item.quantity}x {item.name}
-                  </span>
-                </div>
-              ))}
-              {order.items.length > 3 && (
-                <span className="text-xs text-brand-blue font-medium">
-                  + {order.items.length - 3} itens...
-                </span>
-              )}
-            </div>
+                    <div className="space-y-1 mb-3">
+                      {order.items.slice(0, 3).map((item) => (
+                        <div
+                          key={item.id}
+                          className="text-xs text-gray-500 flex justify-between"
+                        >
+                          <span>
+                            {item.quantity}x {item.name}
+                          </span>
+                        </div>
+                      ))}
+                      {order.items.length > 3 && (
+                        <span className="text-xs text-brand-blue font-medium">
+                          + {order.items.length - 3} itens...
+                        </span>
+                      )}
+                    </div>
 
-            <div className="pt-3 border-t border-gray-50 flex justify-between items-center text-xs text-gray-400">
-              <span className="flex items-center gap-1">
-                <Clock size={12} />{" "}
-                {new Date(order.createdAt).toLocaleDateString()}
-              </span>
-            </div>
+                    <div className="pt-3 border-t border-gray-50 flex justify-between items-center text-xs text-gray-400">
+                      <span className="flex items-center gap-1">
+                        <Clock size={12} />{" "}
+                        {new Date(order.createdAt).toLocaleDateString()}
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </Draggable>
+            ))}
+            {provided.placeholder}
           </div>
-        ))}
-      </div>
+        )}
+      </Droppable>
     </div>
   );
 }
