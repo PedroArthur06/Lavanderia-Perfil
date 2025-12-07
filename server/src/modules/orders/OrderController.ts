@@ -45,4 +45,24 @@ export class OrderController {
       return res.status(400).json({ error: error.message });
     }
   }
+
+  async addPayment(req: Request, res: Response) {
+    const { id } = req.params; // ID do pedido
+    const { amount, method } = req.body;
+
+    if (!amount || !method) {
+      return res.status(400).json({ error: "Valor e Método são obrigatórios" });
+    }
+
+    try {
+      const payment = await orderService.addPayment(
+        Number(id),
+        Number(amount),
+        method
+      );
+      return res.status(201).json(payment);
+    } catch (error: any) {
+      return res.status(400).json({ error: error.message });
+    }
+  }
 }

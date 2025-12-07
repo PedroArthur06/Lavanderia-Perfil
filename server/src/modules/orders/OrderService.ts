@@ -46,6 +46,7 @@ export class OrderService {
       include: {
         customer: true,
         items: true,
+        payments: true,
       },
       orderBy: { createdAt: "desc" },
     });
@@ -77,5 +78,38 @@ export class OrderService {
     });
 
     return order;
+  }
+
+  async addPayment(orderId: number, amount: number, method: string) {
+    // 1. Verifica se o pedido existe
+    const order = await prisma.order.findUnique({
+      where: { id: orderId },
+      include: { payments: true },
+    });
+
+    if (!order) throw new Error("Pedido não encontrado");
+
+    // 2. Verifica se não está pagando a mais do que deve
+    const totalPaid = order.payments.reduce((acc, p) => acc + p.amount, 0);
+    const remaining = order.total - totalPaid;
+
+    if (amount > remaining + 0.1) {
+      // Margem de erro de float
+      throw new Error("Valor do pagamento excede o restante do pedido.");
+    }
+
+    // 3. Cria o pagamento
+    const payment = await prisma.payment.create({
+      data: {
+        orderId,
+        amount,
+        method, // "PIX", "DINHEIRO", "CARTAO"
+      },
+    });
+
+    // Se quitou tudo, podemos atualizar o status para READY ou DELIVERED se quiser
+    // Mas vamos deixar manual por enquanto.
+
+    return payment;
   }
 }

@@ -10,11 +10,12 @@ datasource db {
 // --- MODELOS ---
 
 model Customer {
-  id        String   @id @default(uuid())
-  name      String
-  phone     String   @unique
-  orders    Order[]
-  createdAt DateTime @default(now())
+  id          String   @id @default(uuid())
+  name        String
+  phone       String   @unique
+  initialDebt Float    @default(0) 
+  orders      Order[]
+  createdAt   DateTime @default(now())
 }
 
 model Service {
@@ -63,4 +64,12 @@ model Expense {
   description String
   amount      Float
   date        DateTime @default(now())
+}
+
+model User {
+  id       String @id @default(uuid())
+  name     String
+  email    String @unique
+  password String
+  role     String @default("ADMIN")
 }

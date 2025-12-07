@@ -5,7 +5,7 @@ const customerService = new CustomerService();
 
 export class CustomerController {
   async create(req: Request, res: Response) {
-    const { name, phone } = req.body;
+    const { name, phone, initialDebt } = req.body; // Pegando o initialDebt
 
     if (!name || !phone) {
       return res
@@ -14,7 +14,12 @@ export class CustomerController {
     }
 
     try {
-      const result = await customerService.create(name, phone);
+      // Passando o initialDebt (se não vier, assume 0)
+      const result = await customerService.create(
+        name,
+        phone,
+        Number(initialDebt || 0)
+      );
       return res.status(201).json(result);
     } catch (error: any) {
       return res.status(400).json({ error: error.message });
