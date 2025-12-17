@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { X, Plus, Trash2, Save, Loader2 } from "lucide-react";
 import { api } from "../services/api";
+import { toast } from "react-toastify";
 
 interface NewOrderModalProps {
   isOpen: boolean;
@@ -88,30 +89,26 @@ export function NewOrderModal({
 
   const handleSaveOrder = async () => {
     if (!selectedCustomer || cart.length === 0) {
-      alert("Por favor, selecione um cliente e adicione itens ao pedido.");
+      // ANTES: alert("Por favor...");
+      toast.warning("Selecione um cliente e adicione itens.");
       return;
     }
 
     try {
-      await api.post("/orders", {
-        customerId: selectedCustomer,
-        items: cart.map((item) => ({
-          name: item.name,
-          quantity: item.quantity,
-          unitPrice: item.price,
-        })),
-      });
+      await api.post("/orders", { /* ... */ });
 
-      alert("Pedido Salvo com Sucesso!");
-      onSuccess(); // Atualiza o Kanban
-      onClose(); // Fecha o Modal
+      // ANTES: alert("Pedido Salvo com Sucesso!");
+      toast.success("Pedido realizado com sucesso!");
+      
+      onSuccess(); 
+      onClose(); 
     } catch (error) {
       console.error(error);
-      alert("Erro ao salvar o pedido. Verifique o console.");
+      // ANTES: alert("Erro ao salvar...");
+      toast.error("Erro ao salvar o pedido.");
     }
   };
 
-  // Cálculo do Total em Tempo Real
   const total = cart.reduce((acc, item) => acc + item.quantity * item.price, 0);
 
   if (!isOpen) return null;

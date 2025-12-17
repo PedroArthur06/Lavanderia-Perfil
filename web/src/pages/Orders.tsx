@@ -9,6 +9,7 @@ import {
   ChevronDown,
 } from "lucide-react";
 import { PaymentModal } from "../components/PaymentModal";
+import { toast } from "react-toastify";
 
 interface Order {
   id: number;
@@ -68,8 +69,10 @@ export function Orders() {
     try {
       await api.patch(`/orders/${orderId}/status`, { status: newStatus });
       loadOrders();
+      toast.success("Status atualizado!"); // Feedback visual é bom
     } catch (error) {
-      alert("Erro ao mudar status");
+      // ANTES: alert("Erro ao mudar status");
+      toast.error("Não foi possível mudar o status.");
     }
   }
 
@@ -81,10 +84,8 @@ export function Orders() {
   function handlePaymentSuccess() {
     setPayModalOpen(false);
     loadOrders();
-    alert("Pagamento registrado com sucesso!");
+    toast.success("Pagamento confirmado!");
   }
-
-
 
   return (
     <div className="space-y-6 animate-fade-in-up">

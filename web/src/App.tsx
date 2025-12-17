@@ -7,6 +7,8 @@ import { Services } from "./pages/Services";
 import { Finance } from "./pages/Finance";
 import { Orders } from "./pages/Orders";
 import { NewOrder } from "./pages/NewOrder";
+import { ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
 function PrivateRoute({ children }: { children: JSX.Element }) {
   const token = localStorage.getItem("@lavanderia:token");
@@ -16,10 +18,22 @@ function PrivateRoute({ children }: { children: JSX.Element }) {
 function App() {
   return (
     <BrowserRouter>
+      <ToastContainer 
+        position="top-right"
+        autoClose={3000}
+        hideProgressBar={false}
+        newestOnTop={false}
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+        theme="colored"
+      />
+
       <Routes>
         <Route path="/login" element={<Login />} />
 
-        {/* Rotas Protegidas com Layout */}
         <Route
           path="/"
           element={
@@ -28,10 +42,7 @@ function App() {
             </PrivateRoute>
           }
         >
-          {/* As páginas internas renderizam DENTRO do RootLayout */}
           <Route index element={<Dashboard />} />
-
-          {/* Rotas funcionais */}
           <Route path="/orders" element={<Orders />} />
           <Route path="/orders/new" element={<NewOrder />} />
           <Route path="/services" element={<Services />} />

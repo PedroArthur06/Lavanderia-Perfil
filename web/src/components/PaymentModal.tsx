@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Modal } from "./Modal";
 import { api } from "../services/api";
+import { toast } from "react-toastify";
 
 interface PaymentModalProps {
   isOpen: boolean;
@@ -49,7 +50,7 @@ export function PaymentModal({
     } catch (error: any) {
       console.error(error);
       const msg = error.response?.data?.error || "Erro ao registrar pagamento";
-      alert(msg);
+      toast.error(msg);
     } finally {
       setIsLoading(false);
     }
