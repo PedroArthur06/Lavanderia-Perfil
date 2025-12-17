@@ -12,25 +12,18 @@ export function ensureAuthenticated(
 ) {
   const authToken = req.headers.authorization;
 
-  // 1. Validar se o token veio
   if (!authToken) {
     return res.status(401).json({ error: "Token não informado" });
   }
 
-  // O token vem assim: "Bearer dwdwdwdwdwdwd"
-  // Precisamos tirar o "Bearer" e pegar só o hash
   const [, token] = authToken.split(" ");
 
   try {
-    // 2. Validar se o token é válido
-    const { sub } = verify(
-      token,
-      "md5-hash-super-secreto-da-lavanderia"
-    ) as IPayload;
+    if (!process.env.JWT_SECRET) {
+        throw new Error("JWT_SECRET missing");
+    }
 
-    // 3. Injetar o ID do usuário na requisição (para usar depois se precisar)
-    // @ts-ignore -> Hack rápido para não precisar reescrever tipagem do Express agora
-    req.user_id = sub;
+    const { sub } = verify(token, process.env.JWT_SECRET) as IPayload;
 
     return next();
   } catch (err) {

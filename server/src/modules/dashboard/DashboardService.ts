@@ -3,69 +3,64 @@ import { PrismaClient } from "@prisma/client";
 const prisma = new PrismaClient();
 
 export class DashboardService {
-  async getMetrics() {
+  async execute() {
+    // --- PARTE 1: FINANCEIRO (Cards) ---
+    
+    // Vendas de Hoje 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
 
-    // 1. Vendas de Hoje (Soma total dos pedidos criados hoje)
     const todayOrders = await prisma.order.aggregate({
       _sum: { total: true },
       where: {
-        createdAt: {
-          gte: today,
-          lt: tomorrow,
-        },
+        createdAt: { gte: today, lt: tomorrow },
       },
     });
 
-    // 2. Pedidos Ativos (Tudo que não foi Entregue ainda)
-    const activeOrdersCount = await prisma.order.count({
+    // Total a Receber (Total Pedidos + Dívidas Antigas) - (Total Pago)
+    const allOrders = await prisma.order.aggregate({ _sum: { total: true } });
+    const allPayments = await prisma.payment.aggregate({ _sum: { amount: true } });
+    const customersDebt = await prisma.customer.aggregate({ _sum: { initialDebt: true } });
+
+    const totalSales = allOrders._sum.total || 0;
+    const totalPaid = allPayments._sum.amount || 0;
+    const totalInitialDebt = customersDebt._sum.initialDebt || 0;
+    
+    // Conta de padaria: Tudo que vendi - Tudo que me pagaram = O que falta receber
+    const totalReceivable = (totalSales + totalInitialDebt) - totalPaid;
+
+    // --- PARTE 2: OPERACIONAL (Gráfico) ---
+
+    // Agrupa pedidos por status 
+    const ordersByStatus = await prisma.order.groupBy({
+      by: ["status"],
+      _count: { id: true },
       where: {
         status: { not: "DELIVERED" },
       },
     });
 
-    // 3. Total a Receber (Fiado Geral) - Lógica simplificada
-    // Pegamos todos os pedidos e subtraímos os pagamentos
-    const allOrders = await prisma.order.aggregate({ _sum: { total: true } });
-    const allPayments = await prisma.payment.aggregate({
-      _sum: { amount: true },
-    });
+    const statusMap: Record<string, string> = {
+      PENDING: "A Fazer",
+      WASHING: "Lavando",
+      READY: "Pronto",
+    };
 
-    // Precisamos somar também as dívidas iniciais dos clientes (importante!)
-    const customersInitialDebt = await prisma.customer.aggregate({
-      _sum: { initialDebt: true },
-    });
-
-    const totalSales = allOrders._sum.total || 0;
-    const totalPaid = allPayments._sum.amount || 0;
-    const totalInitialDebt = customersInitialDebt._sum.initialDebt || 0;
-
-    const totalReceivable = totalSales + totalInitialDebt - totalPaid;
-
-    // 4. Dados para o Gráfico de Pizza (Pedidos por Status)
-    // Agrupa por status e conta quantos tem em cada
-    const ordersByStatus = await prisma.order.groupBy({
-      by: ["status"],
-      _count: { id: true },
-      where: {
-        status: { not: "DELIVERED" }, // Não queremos ver os entregues no gráfico de operação
-      },
-    });
-
-    // Formata para o Frontend
     const chartData = ordersByStatus.map((item) => ({
-      status: item.status,
-      count: item._count.id,
+      name: statusMap[item.status] || item.status,
+      value: item._count.id,
     }));
 
+    // Retorna tudo organizado
     return {
-      todaySales: todayOrders._sum.total || 0,
-      activeOrders: activeOrdersCount,
-      totalReceivable,
-      chartData,
+      financial: {
+        todaySales: todayOrders._sum.total || 0,
+        totalReceivable: totalReceivable > 0 ? totalReceivable : 0, 
+      },
+      chart: chartData,
+      totalOrders: await prisma.order.count(), 
     };
   }
 }

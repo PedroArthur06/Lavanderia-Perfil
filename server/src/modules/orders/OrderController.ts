@@ -62,6 +62,7 @@ export class OrderController {
       );
       return res.status(201).json(payment);
     } catch (error: any) {
+      console.error("Erro no pagamento:", error.message);
       return res.status(400).json({ error: error.message });
     }
   }

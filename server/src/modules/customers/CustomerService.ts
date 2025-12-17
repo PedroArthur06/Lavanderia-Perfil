@@ -4,7 +4,8 @@ const prisma = new PrismaClient();
 
 export class CustomerService {
   // Atualize o create para aceitar initialDebt
-  async create(name: string, phone: string, initialDebt: number = 0) {
+  async create(name: string, phone: string, initialDebtValue: number = 0) {
+    // 1. Verifica se já existe
     const customerExists = await prisma.customer.findUnique({
       where: { phone },
     });
@@ -13,9 +14,34 @@ export class CustomerService {
       throw new Error("Cliente já cadastrado com este telefone.");
     }
 
+    // 2. Cria o cliente
     const customer = await prisma.customer.create({
-      data: { name, phone, initialDebt },
+      data: { 
+        name, 
+        phone, 
+        initialDebt: 0 
+      },
     });
+
+    // 3. Se tiver dívida antiga, cria um Pedido automaticamente
+    if (initialDebtValue > 0) {
+      await prisma.order.create({
+        data: {
+          customerId: customer.id,
+          total: initialDebtValue,
+          status: "DELIVERED", 
+          items: {
+            create: [
+              {
+                name: "Saldo Devedor Anterior",
+                quantity: 1,
+                unitPrice: initialDebtValue,
+              },
+            ],
+          },
+        },
+      });
+    }
 
     return customer;
   }

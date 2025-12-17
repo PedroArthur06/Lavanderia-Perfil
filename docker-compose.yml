@@ -1,13 +1,14 @@
 version: "3.8"
 services:
   postgres:
-    image: postgres:13
+    image: postgres:15-alpine
+    container_name: lavanderia_pg
     ports:
       - "5432:5432"
     environment:
-      POSTGRES_USER: user
-      POSTGRES_PASSWORD: password
-      POSTGRES_DB: lavanderia
+      - POSTGRES_USER=admin
+      - POSTGRES_PASSWORD=admin
+      - POSTGRES_DB=lavanderia
     volumes:
       - pgdata:/var/lib/postgresql/data
 

@@ -10,7 +10,6 @@ import { dashboardRoutes } from "./modules/dashboard/dashboard.routes";
 const routes = Router();
 
 routes.use("/auth", authRoutes);
-
 routes.use("/customers", ensureAuthenticated, customerRoutes);
 routes.use("/services", ensureAuthenticated, serviceRoutes);
 routes.use("/orders", ensureAuthenticated, orderRoutes);

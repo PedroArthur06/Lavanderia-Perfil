@@ -4,7 +4,7 @@ import { hash } from "bcryptjs";
 const prisma = new PrismaClient();
 
 async function main() {
-  // 1. Criar Serviços (Mantendo o que já existia)
+  // 1. Criar Serviços
   const services = [
     { name: "Camisa Social", price: 7.0 },
     { name: "Camiseta Simples", price: 5.0 },
@@ -25,21 +25,21 @@ async function main() {
   ];
 
   for (const service of services) {
-    // Usamos upsert para não dar erro se já existir
+
     await prisma.service
       .upsert({
-        where: { id: service.name }, // Hack rápido: assumindo que não repetimos nomes no seed
+        where: { id: service.name },
         update: {},
         create: service,
       })
-      .catch(() => {}); // Ignora erros de duplicidade no seed simples
+      .catch(() => {}); 
   }
 
-  // 2. CRIAR O ADMIN (Essa é a parte que faltava!)
+  // 2. CRIAR O ADMIN 
   const passwordHash = await hash("123456", 8);
 
   await prisma.user.upsert({
-    where: { email: "admin@perfil.com" }, // <--- O EMAIL CORRETO É ESSE
+    where: { email: "admin@perfil.com" }, 
     update: {},
     create: {
       name: "Dona da Lavanderia",

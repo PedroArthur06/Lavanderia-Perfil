@@ -1,194 +1,169 @@
 import { useEffect, useState } from "react";
-import { DollarSign, ShoppingBag, AlertCircle } from "lucide-react";
-import {
-  PieChart,
-  Pie,
-  Cell,
-  Tooltip,
-  ResponsiveContainer,
-  Legend,
-} from "recharts";
 import { api } from "../services/api";
+import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from "recharts";
+import { Loader2, DollarSign, Wallet, TrendingUp, Info, ShoppingBag } from "lucide-react";
 
 interface DashboardData {
-  todaySales: number;
-  activeOrders: number;
-  totalReceivable: number;
-  chartData: { status: string; count: number }[];
+  financial: {
+    todaySales: number;
+    totalReceivable: number;
+  };
+  chart: { name: string; value: number }[];
+  totalOrders: number;
 }
 
-// Cores para o gráfico (combinando com as tags que usamos antes)
-const COLORS: Record<string, string> = {
-  PENDING: "#fbbf24", // Amarelo (Aguardando)
-  WASHING: "#3b82f6", // Azul (Lavando)
-  DRYING: "#60a5fa", // Azul Claro (Secando)
-  IRONING: "#818cf8", // Roxo (Passando)
-  READY: "#22c55e", // Verde (Pronto)
-};
-
-const STATUS_LABELS: Record<string, string> = {
-  PENDING: "Aguardando",
-  WASHING: "Lavando",
-  DRYING: "Secando",
-  IRONING: "Passando",
-  READY: "Pronto p/ Retirar",
-};
+const COLORS = ["#F59E0B", "#3B82F6", "#10B981"]; // Amarelo, Azul, Verde
 
 export function Dashboard() {
   const [data, setData] = useState<DashboardData | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadDashboard();
+    api.get("/dashboard")
+      .then((res) => {
+        setData(res.data);
+      })
+      .catch((err) => {
+        console.error("Erro dashboard:", err);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
   }, []);
 
-  async function loadDashboard() {
-    try {
-      const response = await api.get("/dashboard");
-      setData(response.data);
-    } catch (error) {
-      console.error("Erro ao carregar dashboard", error);
-    }
+  if (loading) {
+    return <div className="flex justify-center p-10"><Loader2 className="animate-spin" /></div>;
   }
-
-  if (!data) {
-    return <div className="p-8 text-gray-500">Carregando painel...</div>;
-  }
-
-  // Prepara dados para o gráfico (Traduz nomes e cores)
-  const pieData = data.chartData.map((item) => ({
-    name: STATUS_LABELS[item.status] || item.status,
-    value: item.count,
-    color: COLORS[item.status] || "#94a3b8",
-  }));
 
   return (
-    <div className="space-y-8 animate-fade-in-up">
-      <div>
-        <h1 className="text-3xl font-bold text-gray-800">Painel de Controle</h1>
-        <p className="text-gray-500">Visão geral em tempo real</p>
-      </div>
+    <div className="space-y-6 animate-fade-in-up">
+      <h1 className="text-3xl font-bold text-gray-800">Visão Geral</h1>
 
-      {/* 1. Cards de KPI (Indicadores) */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      {/* --- PARTE 1: CARDS (Compactos e iguais ao estilo anterior) --- */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        
         {/* Vendas Hoje */}
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center gap-4">
           <div className="p-3 bg-green-100 text-green-700 rounded-lg">
             <DollarSign size={32} />
           </div>
           <div>
-            <span className="block text-sm text-gray-500 font-medium">
-              Vendas Hoje
-            </span>
-            <span className="block text-2xl font-bold text-gray-800">
-              R$ {data.todaySales.toFixed(2)}
+            <span className="text-sm text-green-700 font-medium block">Vendas Hoje</span>
+            <span className="text-2xl font-bold text-gray-800 block">
+              {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(data?.financial.todaySales || 0)}
             </span>
           </div>
         </div>
 
-        {/* Pedidos Ativos */}
+        {/* A Receber (Fiado) */}
+        <div className="bg-white p-5 rounded-xl shadow-sm border border-red-100 flex items-center gap-4">
+          <div className="p-3 bg-red-50 text-red-600 rounded-lg shrink-0">
+            <Wallet size={24} />
+          </div>
+          <div>
+            <span className="text-sm text-red-500 font-medium block">Total a Receber</span>
+            <span className="text-2xl font-bold text-gray-800 block">
+              {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(data?.financial.totalReceivable || 0)}
+            </span>
+          </div>
+        </div>
+
+        {/* Total Pedidos */}
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center gap-4">
           <div className="p-3 bg-blue-100 text-blue-700 rounded-lg">
             <ShoppingBag size={32} />
           </div>
           <div>
-            <span className="block text-sm text-gray-500 font-medium">
-              Roupas na Loja
-            </span>
-            <span className="block text-2xl font-bold text-gray-800">
-              {data.activeOrders} pedidos
-            </span>
-          </div>
-        </div>
-
-        {/* Total a Receber */}
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center gap-4">
-          <div className="p-3 bg-red-100 text-red-700 rounded-lg">
-            <AlertCircle size={32} />
-          </div>
-          <div>
-            <span className="block text-sm text-gray-500 font-medium">
-              Total a Receber (Geral)
-            </span>
-            <span className="block text-2xl font-bold text-gray-800">
-              R$ {data.totalReceivable.toFixed(2)}
+            <span className="text-sm text-blue-700 font-medium block">Total Pedidos</span>
+            <span className="text-2xl font-bold text-gray-800 block">
+              {data?.totalOrders}
             </span>
           </div>
         </div>
       </div>
 
-      {/* 2. Área Visual */}
+      {/* --- PARTE 2: GRID ASSIMÉTRICO  --- */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Gráfico de Pizza: Status dos Pedidos */}
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 lg:col-span-2">
-          <h3 className="font-bold text-gray-700 mb-2">
-            Situação da Lavanderia
-          </h3>
-          <p className="text-sm text-gray-400 mb-6">
-            Pedidos ativos por etapa do processo
-          </p>
-
-          <div className="h-64 w-full">
-            {pieData.length > 0 ? (
+        
+        {/* COLUNA ESQUERDA: Gráfico de Ritmo */}
+        <div className="lg:col-span-2 bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col items-center justify-center min-h-[300px]">
+          <h2 className="text-lg font-bold text-gray-700 mb-4 w-full text-left flex items-center gap-2">
+            Ritmo de Trabalho
+          </h2>
+          
+          {data?.chart.length === 0 ? (
+             <div className="flex flex-col items-center justify-center h-full text-gray-400">
+                <CheckCircle size={40} className="mb-2 opacity-20"/>
+                <p>Tudo entregue!</p>
+             </div>
+          ) : (
+            <div className="w-full h-64">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
-                    data={pieData}
+                    data={data?.chart}
                     cx="50%"
                     cy="50%"
-                    innerRadius={60}
-                    outerRadius={80}
+                    innerRadius={60} 
+                    outerRadius={85}
                     paddingAngle={5}
                     dataKey="value"
                   >
-                    {pieData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    {data?.chart.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                     ))}
                   </Pie>
-                  <Tooltip
-                    formatter={(value: number) => [`${value} pedidos`]}
-                    contentStyle={{
-                      borderRadius: "8px",
-                      border: "none",
-                      boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-                    }}
+                  <Tooltip 
+                    formatter={(value) => [`${value} pedidos`, 'Quantidade']}
+                    contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                   />
-                  <Legend
-                    verticalAlign="middle"
-                    align="right"
-                    layout="vertical"
-                    iconType="circle"
-                  />
+                  <Legend verticalAlign="bottom" height={36} iconType="circle"/>
                 </PieChart>
               </ResponsiveContainer>
-            ) : (
-              <div className="h-full flex flex-col items-center justify-center text-gray-300">
-                <ShoppingBag size={48} className="mb-2 opacity-20" />
-                <p>Nenhum pedido ativo no momento.</p>
-              </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
 
-        {/* Card de Informação Rápida / Dica */}
-        <div className="bg-primary text-white p-6 rounded-xl shadow-lg flex flex-col justify-between">
-          <div>
-            <h3 className="font-bold text-xl mb-2">Dica do Sistema</h3>
-            <p className="text-blue-100 text-sm leading-relaxed">
-              Mantenha o status dos pedidos atualizado na aba "Pedidos". Isso
-              ajuda a saber exatamente o que está pronto para entregar e libera
-              espaço na visão de "Lavando".
-            </p>
-          </div>
-          <div className="mt-6 pt-6 border-t border-blue-400/30">
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-blue-200">Precisa de ajuda?</span>
-              <button className="bg-white text-primary px-4 py-2 rounded-lg text-sm font-bold hover:bg-blue-50 transition-colors">
-                Suporte
-              </button>
+        {/* COLUNA DIREITA: Aviso do Sistema */}
+        <div className="lg:col-span-1 bg-blue-900 rounded-xl p-6 text-white flex flex-col shadow-lg h-full justify-between">
+            <div>
+              <div className="flex items-center gap-2 mb-4 opacity-80">
+                <Info size={20} />
+                <span className="font-bold text-sm uppercase tracking-wider">Dica do Dia</span>
+              </div>
+              <p className="text-lg font-medium leading-relaxed opacity-90">
+                Mantenha os pedidos atualizados.
+              </p>
+              <p className="text-sm mt-2 opacity-60">
+                Marcar como <strong>Entregue</strong> remove o item do gráfico e libera a visão.
+              </p>
             </div>
-          </div>
+            
+            <div className="mt-6 pt-6 border-t border-blue-800/50">
+               <p className="text-xs opacity-50 text-center">Sistema v1.0</p>
+            </div>
         </div>
       </div>
     </div>
   );
+}
+
+function CheckCircle({ size, className }: { size: number, className?: string }) {
+    return (
+        <svg 
+            xmlns="http://www.w3.org/2000/svg" 
+            width={size} 
+            height={size} 
+            viewBox="0 0 24 24" 
+            fill="none" 
+            stroke="currentColor" 
+            strokeWidth="2" 
+            strokeLinecap="round" 
+            strokeLinejoin="round" 
+            className={className}
+        >
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+            <polyline points="22 4 12 14.01 9 11.01"></polyline>
+        </svg>
+    )
 }

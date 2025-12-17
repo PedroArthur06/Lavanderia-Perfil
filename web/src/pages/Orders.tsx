@@ -20,7 +20,7 @@ interface Order {
 }
 
 const STATUS_OPTIONS = {
-  PENDING: { label: "Aguardando", color: "bg-yellow-100 text-yellow-800" },
+  PENDING: { label: "A Fazer", color: "bg-yellow-100 text-yellow-800" },
   WASHING: { label: "Lavando", color: "bg-blue-100 text-blue-800" },
   READY: { label: "Pronto", color: "bg-green-100 text-green-800" },
   DELIVERED: { label: "Entregue", color: "bg-gray-100 text-gray-600" },
@@ -76,7 +76,7 @@ export function Orders() {
 
   function openPaymentModal(order: Order, remaining: number) {
     setSelectedOrder(order);
-    setPayAmount(remaining.toFixed(2)); // Sugere pagar o restante
+    setPayAmount(remaining.toFixed(2)); 
     setPayModalOpen(true);
   }
 
@@ -89,11 +89,20 @@ export function Orders() {
         amount: parseFloat(payAmount),
         method: payMethod,
       });
+      
       alert("Pagamento registrado!");
       setPayModalOpen(false);
       loadOrders();
-    } catch (error) {
-      alert("Erro ao registrar pagamento");
+      
+    } catch (error: any) {
+
+      if (error.response && error.response.data && error.response.data.error) {
+        alert(error.response.data.error); 
+      } else {
+        alert("Erro desconhecido ao registrar pagamento.");
+      }
+      
+      console.error("Erro técnico:", error); 
     }
   }
 

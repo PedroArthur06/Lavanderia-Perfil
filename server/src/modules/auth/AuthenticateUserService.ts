@@ -20,19 +20,13 @@ export class AuthenticateUserService {
       throw new Error("Email ou senha incorretos");
     }
 
-    // 2. Verificar se a senha bate
-    const passwordMatch = await compare(password, user.password);
-
-    if (!passwordMatch) {
-      throw new Error("Email ou senha incorretos");
+    if (!process.env.JWT_SECRET) {
+      throw new Error("Erro crítico: JWT_SECRET não definido no ambiente.");
     }
 
-    // 3. Gerar o Token JWT
-    // IMPORTANTE: Em produção, esse "segredo" DEVE vir do .env (process.env.JWT_SECRET)
-    // Estou colocando hardcoded aqui APENAS para facilitar seu teste agora.
-    const token = sign({}, "md5-hash-super-secreto-da-lavanderia", {
-      subject: user.id, // Quem é o dono do token
-      expiresIn: "1d", // Duração de 1 dia
+    const token = sign({}, process.env.JWT_SECRET, {
+      subject: user.id,
+      expiresIn: "1d",
     });
 
     return { token, user: { name: user.name, email: user.email } };

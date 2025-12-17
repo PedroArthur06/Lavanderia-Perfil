@@ -5,7 +5,7 @@ const dashboardService = new DashboardService();
 
 export class DashboardController {
   async index(req: Request, res: Response) {
-    const result = await dashboardService.getMetrics();
+    const result = await dashboardService.execute();
     return res.json(result);
   }
 }
