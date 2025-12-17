@@ -5,7 +5,7 @@ const orderService = new OrderService();
 
 export class OrderController {
   async create(req: Request, res: Response) {
-    const { customerId, items } = req.body;
+    const { customerId, items, discount } = req.body;
 
     // Validação básica
     if (!customerId || !items || items.length === 0) {
@@ -15,7 +15,11 @@ export class OrderController {
     }
 
     try {
-      const order = await orderService.create({ customerId, items });
+      const order = await orderService.create({
+        customerId,
+        items,
+        discount: discount ? Number(discount) : 0,
+      });
       return res.status(201).json(order);
     } catch (error: any) {
       return res

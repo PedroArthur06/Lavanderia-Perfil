@@ -2,39 +2,65 @@ import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
-interface CreateOrderDTO {
+interface IOrderRequest {
   customerId: string;
   items: {
-    name: string;
+    serviceId: string;
     quantity: number;
-    unitPrice: number;
   }[];
+  discount?: number;
 }
 
 export class OrderService {
-  async create({ customerId, items }: CreateOrderDTO) {
-    // 1. Calcular o total no Backend
-    const total = items.reduce((acc, item) => {
-      return acc + item.quantity * item.unitPrice;
-    }, 0);
+  async create({ customerId, items, discount = 0 }: IOrderRequest) {
+    // 1. Calcular o preço total dos itens (Subtotal)
+    let subtotal = 0;
+    const orderItemsData = [];
 
-    // 2. Criar Pedido + Itens numa tacada só
+    for (const item of items) {
+      const service = await prisma.service.findUnique({
+        where: { id: item.serviceId },
+      });
+
+      if (!service) {
+        throw new Error(`Serviço com ID ${item.serviceId} não encontrado.`);
+      }
+
+      const itemTotal = service.price * item.quantity;
+      subtotal += itemTotal;
+
+      orderItemsData.push({
+        name: service.name,
+        quantity: item.quantity,
+        unitPrice: service.price,
+      });
+    }
+
+    // 2. Validação de Segurança
+    if (discount < 0) {
+       throw new Error("O desconto não pode ser negativo.");
+    }
+    if (discount > subtotal) {
+       throw new Error("O desconto não pode ser maior que o valor do pedido.");
+    }
+
+    // 3. Cálculo Final
+    const total = subtotal - discount;
+
+    // 4. Salvar no Banco
     const order = await prisma.order.create({
       data: {
         customerId,
-        total,
-        status: "PENDING",
+        discount, // Salva quanto foi dado de desconto
+        total,    // Salva o valor final a pagar
         items: {
-          create: items.map((item) => ({
-            name: item.name,
-            quantity: item.quantity,
-            unitPrice: item.unitPrice,
-          })),
+          create: orderItemsData,
         },
       },
       include: {
         items: true,
         customer: true,
+        payments: true,
       },
     });
 

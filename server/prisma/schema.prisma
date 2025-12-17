@@ -32,7 +32,7 @@ model Order {
   items      OrderItem[]
   payments   Payment[]
   total      Float
-
+  discount   Float       @default(0)
   status     String      @default("PENDING") 
   
   createdAt  DateTime    @default(now())
