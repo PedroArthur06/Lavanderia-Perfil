@@ -8,6 +8,7 @@ import {
   DollarSign,
   ChevronDown,
 } from "lucide-react";
+import { PaymentModal } from "../components/PaymentModal";
 
 interface Order {
   id: number;
@@ -35,8 +36,6 @@ export function Orders() {
   // Estado para Modal de Pagamento
   const [payModalOpen, setPayModalOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
-  const [payAmount, setPayAmount] = useState("");
-  const [payMethod, setPayMethod] = useState("PIX");
 
   useEffect(() => {
     loadOrders();
@@ -74,37 +73,18 @@ export function Orders() {
     }
   }
 
-  function openPaymentModal(order: Order, remaining: number) {
+  function openPaymentModal(order: Order) {
     setSelectedOrder(order);
-    setPayAmount(remaining.toFixed(2)); 
     setPayModalOpen(true);
   }
 
-  async function handlePaymentSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!selectedOrder) return;
-
-    try {
-      await api.post(`/orders/${selectedOrder.id}/payment`, {
-        amount: parseFloat(payAmount),
-        method: payMethod,
-      });
-      
-      alert("Pagamento registrado!");
-      setPayModalOpen(false);
-      loadOrders();
-      
-    } catch (error: any) {
-
-      if (error.response && error.response.data && error.response.data.error) {
-        alert(error.response.data.error); 
-      } else {
-        alert("Erro desconhecido ao registrar pagamento.");
-      }
-      
-      console.error("Erro técnico:", error); 
-    }
+  function handlePaymentSuccess() {
+    setPayModalOpen(false);
+    loadOrders();
+    alert("Pagamento registrado com sucesso!");
   }
+
+
 
   return (
     <div className="space-y-6 animate-fade-in-up">
@@ -223,19 +203,19 @@ export function Orders() {
                           <CheckCircle size={10} /> Pago
                         </span>
                       ) : (
-                        <button
-                          onClick={() => openPaymentModal(order, remaining)}
-                          className="text-xs text-red-500 font-bold hover:underline bg-red-50 px-1.5 rounded flex items-center gap-1 mt-1 cursor-pointer"
-                        >
-                          <Clock size={10} /> Falta R$ {remaining.toFixed(2)}
-                        </button>
+                          <button
+                            onClick={() => openPaymentModal(order)}
+                            className="text-xs text-red-500 font-bold hover:underline bg-red-50 px-1.5 rounded flex items-center gap-1 mt-1 cursor-pointer"
+                          >
+                            <Clock size={10} /> Falta R$ {remaining.toFixed(2)}
+                          </button>
                       )}
                     </div>
                   </td>
                   <td className="p-4 text-center">
                     {!isPaid && (
                       <button
-                        onClick={() => openPaymentModal(order, remaining)}
+                        onClick={() => openPaymentModal(order)}
                         className="bg-green-600 text-white p-2 rounded-lg hover:bg-green-700 transition-colors shadow-sm"
                         title="Receber Pagamento"
                       >
@@ -256,63 +236,13 @@ export function Orders() {
       </div>
 
       {/* Modal de Recebimento */}
-      {payModalOpen && selectedOrder && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-xl p-6 w-full max-w-sm shadow-2xl">
-            <h2 className="text-lg font-bold text-gray-800 mb-1">
-              Receber Pagamento
-            </h2>
-            <p className="text-sm text-gray-500 mb-4">
-              Pedido #{selectedOrder.id} - {selectedOrder.customer.name}
-            </p>
-
-            <form onSubmit={handlePaymentSubmit} className="space-y-4">
-              <div>
-                <label className="text-sm font-medium text-gray-700">
-                  Valor (R$)
-                </label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={payAmount}
-                  onChange={(e) => setPayAmount(e.target.value)}
-                  className="w-full border rounded-lg p-2 mt-1 text-lg font-bold text-green-700"
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-700">
-                  Forma de Pagamento
-                </label>
-                <select
-                  value={payMethod}
-                  onChange={(e) => setPayMethod(e.target.value)}
-                  className="w-full border rounded-lg p-2 mt-1"
-                >
-                  <option value="PIX">PIX</option>
-                  <option value="DINHEIRO">Dinheiro</option>
-                  <option value="CARTAO_CREDITO">Cartão Crédito</option>
-                  <option value="CARTAO_DEBITO">Cartão Débito</option>
-                </select>
-              </div>
-              <div className="flex justify-end gap-2 mt-4">
-                <button
-                  type="button"
-                  onClick={() => setPayModalOpen(false)}
-                  className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700"
-                >
-                  Confirmar Recebimento
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      {/* Modal de Recebimento */}
+      <PaymentModal
+        isOpen={payModalOpen}
+        onClose={() => setPayModalOpen(false)}
+        order={selectedOrder}
+        onSuccess={handlePaymentSuccess}
+      />
     </div>
   );
 }

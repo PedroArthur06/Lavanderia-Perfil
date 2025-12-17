@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { api } from "../services/api";
 import { Search, Plus, Trash2, Save, UserPlus } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { Modal } from "../components/Modal";
+import { PaymentModal } from "../components/PaymentModal";
 
 interface Service {
   id: string;
@@ -24,6 +26,12 @@ export function NewOrder() {
     []
   );
   const [selectedCustomer, setSelectedCustomer] = useState("");
+  // 1. Adicione o estado para o desconto
+  const [discount, setDiscount] = useState(""); // String para facilitar digitação
+  
+  // Modal State
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [createdOrder, setCreatedOrder] = useState<any>(null); // Guardar o pedido criado para saber o ID pra onde ir
 
   // Filtros
   const [searchService, setSearchService] = useState("");
@@ -56,33 +64,54 @@ export function NewOrder() {
     if (cart.length === 0) return alert("Adicione itens ao pedido!");
 
     try {
-      await api.post("/orders", {
+      const response = await api.post("/orders", {
         customerId: selectedCustomer,
         items: cart.map((i) => ({
-          name: i.service.name,
+          serviceId: i.service.id,
           quantity: i.quantity,
-          unitPrice: i.service.price,
+          // unitPrice: i.service.price, // Removido pois o backend pega do serviceId, mas se quiser pode mandar
         })),
+        discount: parseFloat(discount) || 0, // Envia pro backend
       });
 
-      // Feedback e Redirecionamento
-      const confirmPay = window.confirm(
-        "Pedido criado! Deseja registrar o pagamento agora?"
-      );
-      if (confirmPay) {
-        navigate("/orders"); // Vai pra lista para pagar
-      } else {
-        navigate("/orders"); // Vai pra lista (como fiado)
-      }
+      // Salva o pedido criado e abre o modal
+      setCreatedOrder(response.data);
+      setShowPaymentModal(true);
+
     } catch (error) {
       alert("Erro ao criar pedido");
     }
   }
 
-  const total = cart.reduce(
+
+
+  function handlePaymentSuccess() {
+    setShowRealPaymentModal(false);
+    navigate("/orders");
+    alert("Pedido criado e pagado com sucesso!");
+  }
+
+  function handleNavigateToOrders() {
+    navigate("/orders");
+  }
+
+  // State para o PaymentModal (reaproveitando o do Modal de Confirmacao que agora vira intermediario)
+  // Na verdade precisamos de dois estados ou controlar qual modal ta aberto
+  // Vamos usar um estado só pra simplificar: showPaymentModal = Confirmação, e um novo para o Pagamento real
+  const [showRealPaymentModal, setShowRealPaymentModal] = useState(false);
+
+  function handleOpenRealPayment() {
+    setShowPaymentModal(false); // Fecha o de confirmação
+    setShowRealPaymentModal(true); // Abre o de pagamento
+  }
+
+  // ... lógica existente de cálculo do subtotal ...
+  const subtotal = cart.reduce(
     (acc, item) => acc + item.service.price * item.quantity,
     0
   );
+  const discountValue = parseFloat(discount) || 0;
+  const finalTotal = Math.max(0, subtotal - discountValue);
   const filteredServices = services.filter((s) =>
     s.name.toLowerCase().includes(searchService.toLowerCase())
   );
@@ -197,13 +226,41 @@ export function NewOrder() {
         </div>
 
         {/* Resumo e Botão */}
+        {/* Resumo e Botão */}
         <div className="p-5 border-t border-gray-100 bg-gray-50 rounded-b-xl">
-          <div className="flex justify-between items-end mb-4">
-            <span className="text-gray-500 font-medium">Total a Pagar</span>
-            <span className="text-3xl font-bold text-gray-800">
-              R$ {total.toFixed(2)}
-            </span>
+          
+          <div className="flex flex-col gap-3 mb-4">
+            
+            {/* Subtotal (Informativo) */}
+            <div className="flex justify-between text-gray-500 text-sm">
+              <span>Subtotal:</span>
+              <span>R$ {subtotal.toFixed(2)}</span>
+            </div>
+
+            {/* Campo de Desconto */}
+            <div className="flex justify-between items-center text-red-500">
+              <span className="text-sm font-medium">Desconto (-):</span>
+              <div className="flex items-center gap-1 bg-red-50 rounded-md px-2 border border-red-100 w-32">
+                <span className="text-xs">R$</span>
+                <input 
+                  type="number"
+                  min="0"
+                  placeholder="0,00"
+                  className="bg-transparent border-none outline-none text-right w-full font-bold text-red-600"
+                  value={discount}
+                  onChange={(e) => setDiscount(e.target.value)}
+                />
+              </div>
+            </div>
+
+            {/* Total Final (O Grande Destaque) */}
+            <div className="flex justify-between items-center text-xl font-bold text-gray-800 border-t border-dashed pt-2">
+              <span>Total a Pagar:</span>
+              <span className="text-green-600">R$ {finalTotal.toFixed(2)}</span>
+            </div>
+
           </div>
+
           <button
             onClick={handleFinishOrder}
             disabled={cart.length === 0 || !selectedCustomer}
@@ -213,6 +270,46 @@ export function NewOrder() {
           </button>
         </div>
       </div>
+      {/* Modal de Confirmação de Pagamento */}
+      <Modal
+        isOpen={showPaymentModal}
+        onClose={handleNavigateToOrders}
+        title="Pedido Criado com Sucesso! 🎉"
+        variant="success"
+        footer={
+          <>
+            <button
+              onClick={handleNavigateToOrders}
+              className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors font-medium"
+            >
+              Talvez depois
+            </button>
+            <button
+              onClick={handleOpenRealPayment}
+              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-bold shadow-md"
+            >
+              Registrar Pagamento Agora
+            </button>
+          </>
+        }
+      >
+        <div className="space-y-3">
+          <p>
+            O pedido foi salvo corretamente. O que você deseja fazer agora?
+          </p>
+          <div className="bg-green-50 p-3 rounded-lg border border-green-100 text-sm text-green-800">
+            <span className="font-bold">Dica:</span> Registrar o pagamento agora ajuda a manter o caixa organizado! 
+          </div>
+        </div>
+      </Modal>
+
+      {/* Modal Real de Pagamento */}
+      <PaymentModal 
+        isOpen={showRealPaymentModal}
+        onClose={handleNavigateToOrders} // Se fechar sem pagar, vai pra lista
+        order={createdOrder}
+        onSuccess={handlePaymentSuccess}
+      />
     </div>
   );
 }

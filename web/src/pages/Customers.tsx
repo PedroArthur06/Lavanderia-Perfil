@@ -40,7 +40,7 @@ export function Customers() {
           : 0,
       });
 
-      alert("Cliente cadastrado com sucesso!");
+      // alert("Cliente cadastrado com sucesso!");
       setIsModalOpen(false);
       setNewName("");
       setNewPhone("");
