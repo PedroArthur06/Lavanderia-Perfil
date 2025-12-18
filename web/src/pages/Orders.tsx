@@ -12,6 +12,7 @@ import {
 import { PaymentModal } from "../components/PaymentModal";
 import { toast } from "react-toastify";
 import { generateWhatsAppLink } from "../lib/utils";
+import { Printer } from "lucide-react";
 
 interface Order {
   id: number;
@@ -247,6 +248,16 @@ export function Orders() {
                       )}
                     </div>
                   </td>
+                  <div className="flex gap-2">
+
+                  <button
+                    onClick={() => window.open(`/print/orders/${order.id}`, '_blank')}
+                    className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                    title="Imprimir Recibo"
+                  >
+                    <Printer size={20} />
+                  </button>
+                </div>
                 </tr>
               );
             })}

@@ -9,6 +9,7 @@ import { Orders } from "./pages/Orders";
 import { NewOrder } from "./pages/NewOrder";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import { PrintOrder } from "./pages/PrintOrder";
 
 function PrivateRoute({ children }: { children: JSX.Element }) {
   const token = localStorage.getItem("@lavanderia:token");
@@ -31,7 +32,15 @@ function App() {
         theme="colored"
       />
 
-      <Routes>
+        <Routes>
+          <Route 
+            path="/print/orders/:id" 
+            element={
+              <PrivateRoute>
+                <PrintOrder />
+              </PrivateRoute>
+            } 
+  />
         <Route path="/login" element={<Login />} />
 
         <Route
