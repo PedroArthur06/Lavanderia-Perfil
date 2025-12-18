@@ -8,6 +8,8 @@ export function errorHandler(
   res: Response,
   next: NextFunction
 ) {
+  console.error(`[ERROR] ${req.method} ${req.url}:`, err);
+
   if (err instanceof AppError) {
     return res.status(err.statusCode).json({
       status: "error",
@@ -22,8 +24,6 @@ export function errorHandler(
       errors: err.issues,
     });
   }
-
-  console.error(err);
 
   return res.status(500).json({
     status: "error",
