@@ -1,4 +1,5 @@
 import { PrismaClient } from "@prisma/client";
+import { AppError } from "../../shared/errors/AppError";
 
 const prisma = new PrismaClient();
 
@@ -23,7 +24,7 @@ export class OrderService {
       });
 
       if (!service) {
-        throw new Error(`Serviço com ID ${item.serviceId} não encontrado.`);
+        throw new AppError(`Serviço com ID ${item.serviceId} não encontrado.`, 404);
       }
 
       const itemTotal = service.price * item.quantity;
@@ -38,10 +39,10 @@ export class OrderService {
 
     // 2. Validação de Segurança
     if (discount < 0) {
-       throw new Error("O desconto não pode ser negativo.");
+       throw new AppError("O desconto não pode ser negativo.");
     }
     if (discount > subtotal) {
-       throw new Error("O desconto não pode ser maior que o valor do pedido.");
+       throw new AppError("O desconto não pode ser maior que o valor do pedido.");
     }
 
     // 3. Cálculo Final
@@ -90,7 +91,7 @@ export class OrderService {
     ];
 
     if (!allowedStatuses.includes(newStatus)) {
-      throw new Error(`Status inválido. Use: ${allowedStatuses.join(", ")}`);
+      throw new AppError(`Status inválido. Use: ${allowedStatuses.join(", ")}`);
     }
 
     // Atualizar pedido
@@ -113,7 +114,7 @@ export class OrderService {
       include: { payments: true },
     });
 
-    if (!order) throw new Error("Pedido não encontrado");
+    if (!order) throw new AppError("Pedido não encontrado", 404);
 
     // 2. Verifica se não está pagando a mais do que deve
     const totalPaid = order.payments.reduce((acc, p) => acc + p.amount, 0);
@@ -121,7 +122,7 @@ export class OrderService {
 
     if (amount > remaining + 0.1) {
       // Margem de erro de float
-      throw new Error("Valor do pagamento excede o restante do pedido.");
+      throw new AppError("Valor do pagamento excede o restante do pedido.");
     }
 
     // 3. Cria o pagamento

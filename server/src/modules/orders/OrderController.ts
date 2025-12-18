@@ -1,31 +1,30 @@
 import { Request, Response } from "express";
+import { z } from "zod";
 import { OrderService } from "./OrderService";
 
 const orderService = new OrderService();
 
 export class OrderController {
   async create(req: Request, res: Response) {
-    const { customerId, items, discount } = req.body;
+    const createOrderSchema = z.object({
+      customerId: z.string().min(1, "Customer ID is required"),
+      items: z.array(
+        z.object({
+          serviceId: z.string().min(1, "Service ID is required"),
+          quantity: z.number().int().positive("Quantity must be positive"),
+        })
+      ).min(1, "At least one item is required"),
+      discount: z.coerce.number().min(0).optional().default(0),
+    });
 
-    // Validação básica
-    if (!customerId || !items || items.length === 0) {
-      return res
-        .status(400)
-        .json({ error: "Pedido precisa de Cliente e Itens." });
-    }
+    const { customerId, items, discount } = createOrderSchema.parse(req.body);
 
-    try {
-      const order = await orderService.create({
-        customerId,
-        items,
-        discount: discount ? Number(discount) : 0,
-      });
-      return res.status(201).json(order);
-    } catch (error: any) {
-      return res
-        .status(400)
-        .json({ error: "Erro ao criar pedido. Verifique o ID do cliente." });
-    }
+    const order = await orderService.create({
+      customerId,
+      items,
+      discount,
+    });
+    return res.status(201).json(order);
   }
 
   async list(req: Request, res: Response) {
@@ -34,40 +33,32 @@ export class OrderController {
   }
 
   async updateStatus(req: Request, res: Response) {
+    const updateStatusSchema = z.object({
+      status: z.string().min(1, "Status is required"),
+    });
+
     const { id } = req.params;
-    const { status } = req.body;
+    const { status } = updateStatusSchema.parse(req.body);
 
-    // Validação básica
-    if (!status) {
-      return res.status(400).json({ error: "Status é obrigatório" });
-    }
-
-    try {
-      const order = await orderService.updateStatus(Number(id), status);
-      return res.json(order);
-    } catch (error: any) {
-      return res.status(400).json({ error: error.message });
-    }
+    const order = await orderService.updateStatus(Number(id), status);
+    return res.json(order);
   }
 
   async addPayment(req: Request, res: Response) {
-    const { id } = req.params; // ID do pedido
-    const { amount, method } = req.body;
+    const addPaymentSchema = z.object({
+      amount: z.coerce.number().positive("Amount must be positive"),
+      method: z.string().min(1, "Payment method is required"),
+    });
 
-    if (!amount || !method) {
-      return res.status(400).json({ error: "Valor e Método são obrigatórios" });
-    }
+    const { id } = req.params;
+    const { amount, method } = addPaymentSchema.parse(req.body);
 
-    try {
-      const payment = await orderService.addPayment(
-        Number(id),
-        Number(amount),
-        method
-      );
-      return res.status(201).json(payment);
-    } catch (error: any) {
-      console.error("Erro no pagamento:", error.message);
-      return res.status(400).json({ error: error.message });
-    }
+    const payment = await orderService.addPayment(
+      Number(id),
+      amount,
+      method
+    );
+    return res.status(201).json(payment);
   }
 }
+
