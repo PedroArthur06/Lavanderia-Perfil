@@ -7,9 +7,11 @@ import {
   Clock,
   DollarSign,
   ChevronDown,
+  MessageCircle,
 } from "lucide-react";
 import { PaymentModal } from "../components/PaymentModal";
 import { toast } from "react-toastify";
+import { generateWhatsAppLink } from "../lib/utils";
 
 interface Order {
   id: number;
@@ -27,6 +29,11 @@ const STATUS_OPTIONS = {
   READY: { label: "Pronto", color: "bg-green-100 text-green-800" },
   DELIVERED: { label: "Entregue", color: "bg-gray-100 text-gray-600" },
 };
+
+
+function translateStatus(status: string) {
+  return STATUS_OPTIONS[status as keyof typeof STATUS_OPTIONS]?.label || status;
+}
 
 export function Orders() {
   const [orders, setOrders] = useState<Order[]>([]);
@@ -214,15 +221,31 @@ export function Orders() {
                     </div>
                   </td>
                   <td className="p-4 text-center">
-                    {!isPaid && (
-                      <button
-                        onClick={() => openPaymentModal(order)}
-                        className="bg-green-600 text-white p-2 rounded-lg hover:bg-green-700 transition-colors shadow-sm"
-                        title="Receber Pagamento"
+                    <div className="flex items-center justify-center gap-2">
+                       {/* Botão do WhatsApp */}
+                      <a
+                        href={generateWhatsAppLink(
+                          order.customer.phone,
+                          `Olá ${order.customer.name}, seu pedido #${order.id} mudou para: *${translateStatus(order.status)}*.`
+                        )}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="bg-green-500 text-white p-2 rounded-lg hover:bg-green-600 transition-colors shadow-sm"
+                        title="Avisar no WhatsApp"
                       >
-                        <DollarSign size={16} />
-                      </button>
-                    )}
+                        <MessageCircle size={16} />
+                      </a>
+
+                      {!isPaid && (
+                        <button
+                          onClick={() => openPaymentModal(order)}
+                          className="bg-blue-600 text-white p-2 rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
+                          title="Receber Pagamento"
+                        >
+                          <DollarSign size={16} />
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               );
@@ -245,5 +268,6 @@ export function Orders() {
         onSuccess={handlePaymentSuccess}
       />
     </div>
+    
   );
 }

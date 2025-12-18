@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../services/api";
 import { Plus, Search, User, AlertCircle, CheckCircle } from "lucide-react";
+import { formatCurrency, formatPhone } from "../lib/utils";
 
 interface Customer {
   id: string;
@@ -94,7 +95,7 @@ export function Customers() {
               </div>
               {customer.hasDebt ? (
                 <span className="bg-red-100 text-red-700 text-xs px-2 py-1 rounded-full font-bold flex items-center gap-1">
-                  <AlertCircle size={12} /> Deve R$ {customer.debt.toFixed(2)}
+                  <AlertCircle size={12} /> Deve R$ {formatCurrency(customer.debt)}
                 </span>
               ) : (
                 <span className="bg-green-100 text-green-700 text-xs px-2 py-1 rounded-full font-bold flex items-center gap-1">
@@ -103,7 +104,7 @@ export function Customers() {
               )}
             </div>
             <h3 className="font-bold text-lg text-gray-800">{customer.name}</h3>
-            <p className="text-gray-500 text-sm">{customer.phone}</p>
+            <p className="text-gray-500 text-sm">{formatPhone(customer.phone)}</p>
           </div>
         ))}
       </div>
@@ -132,11 +133,12 @@ export function Customers() {
                   Telefone (WhatsApp)
                 </label>
                 <input
-                  required
-                  value={newPhone}
-                  onChange={(e) => setNewPhone(e.target.value)}
-                  className="w-full border rounded-lg p-2 mt-1"
-                  placeholder="65 99999-9999"
+                  type="text"
+                  className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-100 outline-none"
+                  value={formatPhone(newPhone)} 
+                  onChange={(e) => setNewPhone(e.target.value.replace(/\D/g, ""))}
+                  placeholder="(11) 99999-9999"
+                  maxLength={15} 
                 />
               </div>
 

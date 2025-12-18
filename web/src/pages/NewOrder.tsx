@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
 import { api } from "../services/api";
-import { Search, Plus, Trash2, Save, UserPlus } from "lucide-react";
+import { Search, Plus, Trash2, Save, UserPlus, Loader2 } from "lucide-react"; 
 import { useNavigate } from "react-router-dom";
 import { Modal } from "../components/Modal";
 import { PaymentModal } from "../components/PaymentModal";
+import { Toaster, toast } from "sonner";
+import { formatCurrency } from "../lib/utils"; 
 
 interface Service {
   id: string;
@@ -21,24 +23,27 @@ export function NewOrder() {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [services, setServices] = useState<Service[]>([]);
 
-  // Carrinho
-  const [cart, setCart] = useState<{ service: Service; quantity: number }[]>(
-    []
-  );
+  const [cart, setCart] = useState<{ service: Service; quantity: number }[]>([]);
   const [selectedCustomer, setSelectedCustomer] = useState("");
-  // 1. Adicione o estado para o desconto
-  const [discount, setDiscount] = useState(""); // String para facilitar digitação
+  const [discount, setDiscount] = useState("");
   
-  // Modal State
-  const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const [createdOrder, setCreatedOrder] = useState<any>(null); // Guardar o pedido criado para saber o ID pra onde ir
-
-  // Filtros
+  // UX States
+  const [isSubmitting, setIsSubmitting] = useState(false); 
   const [searchService, setSearchService] = useState("");
 
+  // Modais
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [createdOrder, setCreatedOrder] = useState<any>(null);
+  const [showRealPaymentModal, setShowRealPaymentModal] = useState(false);
+
   useEffect(() => {
-    api.get("/customers").then((res) => setCustomers(res.data));
-    api.get("/services").then((res) => setServices(res.data));
+    Promise.all([
+      api.get("/customers"),
+      api.get("/services")
+    ]).then(([custRes, servRes]) => {
+      setCustomers(custRes.data);
+      setServices(servRes.data);
+    }).catch(() => toast.error("Erro ao carregar dados iniciais."));
   }, []);
 
   function addToCart(service: Service) {
@@ -53,6 +58,8 @@ export function NewOrder() {
       }
       return [...prev, { service, quantity: 1 }];
     });
+
+    toast.success(`${service.name} adicionado!`, { duration: 1000, position: 'bottom-center' });
   }
 
   function removeFromCart(index: number) {
@@ -60,8 +67,10 @@ export function NewOrder() {
   }
 
   async function handleFinishOrder() {
-    if (!selectedCustomer) return alert("Selecione um cliente!");
-    if (cart.length === 0) return alert("Adicione itens ao pedido!");
+    if (!selectedCustomer) return toast.warning("Selecione um cliente para continuar.");
+    if (cart.length === 0) return toast.warning("O carrinho está vazio.");
+
+    setIsSubmitting(true); 
 
     try {
       const response = await api.post("/orders", {
@@ -69,66 +78,65 @@ export function NewOrder() {
         items: cart.map((i) => ({
           serviceId: i.service.id,
           quantity: i.quantity,
-          // unitPrice: i.service.price, // Removido pois o backend pega do serviceId, mas se quiser pode mandar
         })),
-        discount: parseFloat(discount) || 0, // Envia pro backend
+        discount: parseFloat(discount) || 0,
       });
 
-      // Salva o pedido criado e abre o modal
       setCreatedOrder(response.data);
       setShowPaymentModal(true);
+      toast.success("Pedido criado com sucesso!");
 
-    } catch (error) {
-      alert("Erro ao criar pedido");
+    } catch (error: any) {
+      console.error(error);
+      const errorMessage = error.response?.data?.message || "Erro desconhecido ao criar pedido.";
+      
+      if (error.response?.data?.errors) {
+         const zodErrors = error.response.data.errors.map((e: any) => e.message).join(", ");
+         toast.error(`Erro de validação: ${zodErrors}`);
+      } else {
+         toast.error(errorMessage);
+      }
+    } finally {
+      setIsSubmitting(false); 
     }
   }
-
-
 
   function handlePaymentSuccess() {
     setShowRealPaymentModal(false);
     navigate("/orders");
-    alert("Pedido criado e pagado com sucesso!");
+    toast.success("Pagamento registrado!");
   }
 
   function handleNavigateToOrders() {
     navigate("/orders");
   }
 
-  // State para o PaymentModal (reaproveitando o do Modal de Confirmacao que agora vira intermediario)
-  // Na verdade precisamos de dois estados ou controlar qual modal ta aberto
-  // Vamos usar um estado só pra simplificar: showPaymentModal = Confirmação, e um novo para o Pagamento real
-  const [showRealPaymentModal, setShowRealPaymentModal] = useState(false);
-
   function handleOpenRealPayment() {
-    setShowPaymentModal(false); // Fecha o de confirmação
-    setShowRealPaymentModal(true); // Abre o de pagamento
+    setShowPaymentModal(false);
+    setShowRealPaymentModal(true);
   }
 
-  // ... lógica existente de cálculo do subtotal ...
-  const subtotal = cart.reduce(
-    (acc, item) => acc + item.service.price * item.quantity,
-    0
-  );
+  const subtotal = cart.reduce((acc, item) => acc + item.service.price * item.quantity, 0);
   const discountValue = parseFloat(discount) || 0;
   const finalTotal = Math.max(0, subtotal - discountValue);
+  
   const filteredServices = services.filter((s) =>
     s.name.toLowerCase().includes(searchService.toLowerCase())
   );
 
   return (
     <div className="flex flex-col lg:flex-row gap-6 h-[calc(100vh-100px)]">
-      {/* Coluna Esquerda: Seleção de Serviços */}
+      <Toaster richColors />
+
+      {/* Coluna Esquerda: Catálogo */}
       <div className="flex-1 bg-white rounded-xl shadow-sm border border-gray-100 flex flex-col overflow-hidden">
         <div className="p-4 border-b border-gray-100">
-          <h2 className="font-bold text-gray-700 mb-2">
-            Selecione os Serviços
-          </h2>
+          <h2 className="font-bold text-gray-700 mb-2">Selecione os Serviços</h2>
           <div className="relative">
             <Search className="absolute left-3 top-2.5 text-gray-400 h-5 w-5" />
             <input
               type="text"
-              placeholder="Buscar peça (ex: Camisa)..."
+              placeholder="Buscar peça..."
               className="w-full pl-10 pr-4 py-2 border rounded-lg bg-gray-50 focus:bg-white transition-colors outline-none"
               value={searchService}
               onChange={(e) => setSearchService(e.target.value)}
@@ -147,22 +155,18 @@ export function NewOrder() {
                 {service.name}
               </span>
               <span className="font-bold text-gray-900 mt-1">
-                R$ {service.price.toFixed(2)}
+                {formatCurrency(service.price)}
               </span>
-              <Plus
-                size={16}
-                className="mt-2 text-blue-400 opacity-0 group-hover:opacity-100 transition-opacity"
-              />
+              <Plus size={16} className="mt-2 text-blue-400 opacity-0 group-hover:opacity-100 transition-opacity" />
             </button>
           ))}
         </div>
       </div>
 
-      {/* Coluna Direita: Carrinho e Cliente */}
+      {/* Coluna Direita: Carrinho */}
       <div className="w-full lg:w-96 bg-white rounded-xl shadow-xl border border-gray-200 flex flex-col">
-        {/* Seleção de Cliente */}
-        <div className="p-5 bg-primary text-white rounded-t-xl">
-          <label className="text-xs font-bold text-blue-200 uppercase mb-1 block">
+        <div className="p-5 bg-blue-700 text-white rounded-t-xl"> 
+          <label className="text-xs font-bold text-blue-100 uppercase mb-1 block">
             Cliente
           </label>
           <div className="flex gap-2">
@@ -171,11 +175,9 @@ export function NewOrder() {
               onChange={(e) => setSelectedCustomer(e.target.value)}
               className="flex-1 bg-white/10 border border-white/20 rounded-lg p-2 text-white placeholder-blue-300 focus:bg-white/20 outline-none [&>option]:text-gray-800"
             >
-              <option value="">Selecione...</option>
+              <option value="">Selecione um cliente...</option>
               {customers.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
+                <option key={c.id} value={c.id}>{c.name}</option>
               ))}
             </select>
             <button
@@ -197,26 +199,18 @@ export function NewOrder() {
             </div>
           ) : (
             cart.map((item, idx) => (
-              <div
-                key={idx}
-                className="flex justify-between items-center bg-gray-50 p-3 rounded-lg border border-gray-100"
-              >
+              <div key={idx} className="flex justify-between items-center bg-gray-50 p-3 rounded-lg border border-gray-100 animate-in fade-in slide-in-from-bottom-2">
                 <div>
-                  <p className="font-medium text-gray-800 text-sm">
-                    {item.service.name}
-                  </p>
+                  <p className="font-medium text-gray-800 text-sm">{item.service.name}</p>
                   <p className="text-xs text-gray-500">
-                    {item.quantity}x R$ {item.service.price.toFixed(2)}
+                    {item.quantity}x {formatCurrency(item.service.price)}
                   </p>
                 </div>
                 <div className="flex items-center gap-3">
                   <span className="font-bold text-gray-700">
-                    R$ {(item.quantity * item.service.price).toFixed(2)}
+                    {formatCurrency(item.quantity * item.service.price)}
                   </span>
-                  <button
-                    onClick={() => removeFromCart(idx)}
-                    className="text-red-400 hover:text-red-600"
-                  >
+                  <button onClick={() => removeFromCart(idx)} className="text-red-400 hover:text-red-600 transition-colors">
                     <Trash2 size={16} />
                   </button>
                 </div>
@@ -225,22 +219,17 @@ export function NewOrder() {
           )}
         </div>
 
-        {/* Resumo e Botão */}
-        {/* Resumo e Botão */}
+        {/* Resumo e Ações */}
         <div className="p-5 border-t border-gray-100 bg-gray-50 rounded-b-xl">
-          
           <div className="flex flex-col gap-3 mb-4">
-            
-            {/* Subtotal (Informativo) */}
             <div className="flex justify-between text-gray-500 text-sm">
               <span>Subtotal:</span>
-              <span>R$ {subtotal.toFixed(2)}</span>
+              <span>{formatCurrency(subtotal)}</span>
             </div>
 
-            {/* Campo de Desconto */}
             <div className="flex justify-between items-center text-red-500">
               <span className="text-sm font-medium">Desconto (-):</span>
-              <div className="flex items-center gap-1 bg-red-50 rounded-md px-2 border border-red-100 w-32">
+              <div className="flex items-center gap-1 bg-red-50 rounded-md px-2 border border-red-100 w-32 focus-within:ring-2 ring-red-200 transition-all">
                 <span className="text-xs">R$</span>
                 <input 
                   type="number"
@@ -253,28 +242,40 @@ export function NewOrder() {
               </div>
             </div>
 
-            {/* Total Final (O Grande Destaque) */}
-            <div className="flex justify-between items-center text-xl font-bold text-gray-800 border-t border-dashed pt-2">
-              <span>Total a Pagar:</span>
-              <span className="text-green-600">R$ {finalTotal.toFixed(2)}</span>
+            <div className="flex justify-between items-center text-xl font-bold text-gray-800 border-t border-dashed border-gray-200 pt-3">
+              <span>Total:</span>
+              <span className="text-green-600">{formatCurrency(finalTotal)}</span>
             </div>
-
           </div>
 
           <button
             onClick={handleFinishOrder}
-            disabled={cart.length === 0 || !selectedCustomer}
-            className="w-full bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-4 rounded-xl shadow-lg shadow-green-900/20 flex items-center justify-center gap-2 text-lg transition-all active:scale-95"
+            disabled={cart.length === 0 || !selectedCustomer || isSubmitting}
+            className={`
+              w-full py-4 rounded-xl shadow-lg flex items-center justify-center gap-2 text-lg font-bold text-white transition-all
+              ${isSubmitting || cart.length === 0 || !selectedCustomer 
+                ? 'bg-gray-400 cursor-not-allowed shadow-none' 
+                : 'bg-green-600 hover:bg-green-700 active:scale-95 shadow-green-900/20'}
+            `}
           >
-            <Save size={24} /> Finalizar Pedido
+            {isSubmitting ? (
+              <>
+                <Loader2 className="animate-spin" size={24} />
+                Processando...
+              </>
+            ) : (
+              <>
+                <Save size={24} /> Finalizar Pedido
+              </>
+            )}
           </button>
         </div>
       </div>
-      {/* Modal de Confirmação de Pagamento */}
+
       <Modal
         isOpen={showPaymentModal}
         onClose={handleNavigateToOrders}
-        title="Pedido Criado com Sucesso! 🎉"
+        title="Pedido Criado! 🎉"
         variant="success"
         footer={
           <>
@@ -282,31 +283,25 @@ export function NewOrder() {
               onClick={handleNavigateToOrders}
               className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors font-medium"
             >
-              Talvez depois
+              Pagar depois
             </button>
             <button
               onClick={handleOpenRealPayment}
               className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-bold shadow-md"
             >
-              Registrar Pagamento Agora
+              Receber Agora
             </button>
           </>
         }
       >
         <div className="space-y-3">
-          <p>
-            O pedido foi salvo corretamente. O que você deseja fazer agora?
-          </p>
-          <div className="bg-green-50 p-3 rounded-lg border border-green-100 text-sm text-green-800">
-            <span className="font-bold">Dica:</span> Registrar o pagamento agora ajuda a manter o caixa organizado! 
-          </div>
+          <p>O pedido foi salvo. Deseja registrar o pagamento agora?</p>
         </div>
       </Modal>
 
-      {/* Modal Real de Pagamento */}
       <PaymentModal 
         isOpen={showRealPaymentModal}
-        onClose={handleNavigateToOrders} // Se fechar sem pagar, vai pra lista
+        onClose={handleNavigateToOrders}
         order={createdOrder}
         onSuccess={handlePaymentSuccess}
       />
