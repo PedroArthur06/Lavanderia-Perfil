@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { z } from "zod";
 import { OrderService } from "./OrderService";
+import { OrderStatus } from "@prisma/client";
 
 const orderService = new OrderService();
 
@@ -34,7 +35,9 @@ export class OrderController {
 
   async updateStatus(req: Request, res: Response) {
     const updateStatusSchema = z.object({
-      status: z.string().min(1, "Status is required"),
+      status: z.nativeEnum(OrderStatus, {
+        message: "Status inválido. Use: " + Object.values(OrderStatus).join(", "),
+      }),
     });
 
     const { id } = req.params;

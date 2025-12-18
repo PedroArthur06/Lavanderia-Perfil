@@ -43,7 +43,7 @@ model Order {
   payments   Payment[]
   total      Float
   discount   Float       @default(0)
-  status     OrderStatus @default("PENDING") 
+  status     OrderStatus @default(PENDING) 
   
   createdAt  DateTime    @default(now())
   updatedAt  DateTime    @updatedAt

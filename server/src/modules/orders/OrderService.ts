@@ -1,4 +1,4 @@
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient, OrderStatus } from "@prisma/client"; 
 import { AppError } from "../../shared/errors/AppError";
 
 const prisma = new PrismaClient();
@@ -14,7 +14,6 @@ interface IOrderRequest {
 
 export class OrderService {
   async create({ customerId, items, discount = 0 }: IOrderRequest) {
-    // 1. Calcular o preço total dos itens (Subtotal)
     let subtotal = 0;
     const orderItemsData = [];
 
@@ -37,7 +36,6 @@ export class OrderService {
       });
     }
 
-    // 2. Validação de Segurança
     if (discount < 0) {
        throw new AppError("O desconto não pode ser negativo.");
     }
@@ -45,15 +43,13 @@ export class OrderService {
        throw new AppError("O desconto não pode ser maior que o valor do pedido.");
     }
 
-    // 3. Cálculo Final
     const total = subtotal - discount;
 
-    // 4. Salvar no Banco
     const order = await prisma.order.create({
       data: {
         customerId,
-        discount, // Salva quanto foi dado de desconto
-        total,    // Salva o valor final a pagar
+        discount,
+        total,
         items: {
           create: orderItemsData,
         },
@@ -79,25 +75,11 @@ export class OrderService {
     });
   }
 
-  async updateStatus(orderId: number, newStatus: string) {
-    // Validar status permitidos
-    const allowedStatuses = [
-      "PENDING",
-      "WASHING",
-      "DRYING",
-      "IRONING",
-      "READY",
-      "DELIVERED",
-    ];
+  async updateStatus(orderId: number, newStatus: OrderStatus) {
 
-    if (!allowedStatuses.includes(newStatus)) {
-      throw new AppError(`Status inválido. Use: ${allowedStatuses.join(", ")}`);
-    }
-
-    // Atualizar pedido
     const order = await prisma.order.update({
       where: { id: orderId },
-      data: { status: newStatus },
+      data: { status: newStatus }, 
       include: {
         customer: true,
         items: true,
@@ -108,7 +90,6 @@ export class OrderService {
   }
 
   async addPayment(orderId: number, amount: number, method: string) {
-    // 1. Verifica se o pedido existe
     const order = await prisma.order.findUnique({
       where: { id: orderId },
       include: { payments: true },
@@ -116,26 +97,20 @@ export class OrderService {
 
     if (!order) throw new AppError("Pedido não encontrado", 404);
 
-    // 2. Verifica se não está pagando a mais do que deve
     const totalPaid = order.payments.reduce((acc, p) => acc + p.amount, 0);
     const remaining = order.total - totalPaid;
 
     if (amount > remaining + 0.1) {
-      // Margem de erro de float
       throw new AppError("Valor do pagamento excede o restante do pedido.");
     }
 
-    // 3. Cria o pagamento
     const payment = await prisma.payment.create({
       data: {
         orderId,
         amount,
-        method, // "PIX", "DINHEIRO", "CARTAO"
+        method,
       },
     });
-
-    // Se quitou tudo, podemos atualizar o status para READY ou DELIVERED se quiser
-    // Mas vamos deixar manual por enquanto.
 
     return payment;
   }
