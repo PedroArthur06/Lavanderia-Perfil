@@ -26,14 +26,14 @@ export function PrintOrder() {
   if (loading) return <div className="flex justify-center p-10"><Loader2 className="animate-spin" /></div>;
   if (!order) return <div className="text-center p-10">Pedido não encontrado</div>;
 
-  // Componente interno do Recibo para reutilizar (Via Cliente e Via Loja)
+  // (Via Cliente e Via Loja)
   const Receipt = ({ title }: { title: string }) => (
     <div className="w-[80mm] p-4 text-black font-mono text-sm leading-tight border-b-2 border-dashed border-gray-400 mb-8 pb-8">
       {/* Cabeçalho */}
       <div className="text-center border-b border-black pb-2 mb-2">
         <h1 className="font-bold text-lg uppercase">Lavanderia Perfil</h1>
-        <p className="text-xs">Rua Exemplo, 123 - Centro</p>
-        <p className="text-xs">Tel: (65) 99999-9999</p>
+        <p className="text-xs">Rua coronel Benedito Leite, 2001 - Goiabeiras</p>
+        <p className="text-xs">Tel: (65) 99210-7684</p>
       </div>
 
       {/* Info do Pedido */}
@@ -100,7 +100,7 @@ export function PrintOrder() {
 
   return (
     <div className="bg-white min-h-screen text-black">
-      {/* Botão para reimprimir manual (some na impressão) */}
+      {/* Botão para reimprimir manual */}
       <div className="print:hidden p-4 bg-gray-100 flex gap-4 shadow-md mb-4">
         <button 
           onClick={() => window.print()} 
