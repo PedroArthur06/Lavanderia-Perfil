@@ -8,9 +8,12 @@ import {
   DollarSign,
   ChevronDown,
   MessageCircle,
+  XCircle,
+  AlertCircle,
+  Undo2,
 } from "lucide-react";
 import { PaymentModal } from "../components/PaymentModal";
-import { toast } from "react-toastify";
+import { toast } from "sonner";
 import { generateWhatsAppLink } from "../lib/utils";
 import { Printer } from "lucide-react";
 
@@ -69,18 +72,35 @@ export function Orders() {
   }, [search, statusFilter, orders]);
 
   async function loadOrders() {
-    const response = await api.get("/orders");
-    setOrders(response.data);
+    try {
+      const response = await api.get("/orders");
+      setOrders(response.data);
+    } catch (error) {
+      toast.error("Erro ao carregar pedidos");
+    }
   }
 
   async function handleStatusChange(orderId: number, newStatus: string) {
     try {
       await api.patch(`/orders/${orderId}/status`, { status: newStatus });
       loadOrders();
-      toast.success("Status atualizado!"); // Feedback visual é bom
+      toast.success("Status atualizado!");
     } catch (error) {
-      // ANTES: alert("Erro ao mudar status");
       toast.error("Não foi possível mudar o status.");
+    }
+  }
+
+  async function handleCancelOrder(id: number) {
+    if (!confirm("Tem certeza que deseja CANCELAR este pedido? Isso não pode ser desfeito.")) {
+      return;
+    }
+
+    try {
+      await api.patch(`/orders/${id}/status`, { status: "CANCELED" });
+      toast.success("Pedido cancelado com sucesso.");
+      loadOrders(); 
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || "Erro ao cancelar.");
     }
   }
 
@@ -184,22 +204,26 @@ export function Orders() {
                     <div className="relative group">
                       <select
                         value={order.status}
+                        disabled={order.status === 'CANCELED' || order.status === 'DELIVERED'}
                         onChange={(e) =>
                           handleStatusChange(order.id, e.target.value)
                         }
                         className={`appearance-none pl-3 pr-8 py-1 rounded-full text-xs font-bold uppercase cursor-pointer border-0 ring-1 ring-inset ring-gray-200 ${
-                          STATUS_OPTIONS[
-                            order.status as keyof typeof STATUS_OPTIONS
-                          ].color
-                        }`}
+                          order.status === 'CANCELED' 
+                            ? 'bg-red-100 text-red-700' 
+                            : STATUS_OPTIONS[order.status as keyof typeof STATUS_OPTIONS]?.color || 'bg-gray-100'
+                        } disabled:opacity-70 disabled:cursor-not-allowed`}
                       >
+                        {order.status === 'CANCELED' && <option value="CANCELED">CANCELADO</option>}
                         {Object.entries(STATUS_OPTIONS).map(([key, val]) => (
                           <option key={key} value={key}>
                             {val.label}
                           </option>
                         ))}
                       </select>
-                      <ChevronDown className="absolute right-2 top-1.5 h-3 w-3 text-gray-500 pointer-events-none" />
+                       {!['CANCELED', 'DELIVERED'].includes(order.status) && (
+                          <ChevronDown className="absolute right-2 top-1.5 h-3 w-3 text-gray-500 pointer-events-none" />
+                       )}
                     </div>
                   </td>
                   <td className="p-4 text-right">
@@ -222,42 +246,55 @@ export function Orders() {
                     </div>
                   </td>
                   <td className="p-4 text-center">
-                    <div className="flex items-center justify-center gap-2">
+                    <div className="flex items-center justify-end gap-2">
                        {/* Botão do WhatsApp */}
-                      <a
-                        href={generateWhatsAppLink(
-                          order.customer.phone,
-                          `Olá ${order.customer.name}, seu pedido #${order.id} mudou para: *${translateStatus(order.status)}*.`
-                        )}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="bg-green-500 text-white p-2 rounded-lg hover:bg-green-600 transition-colors shadow-sm"
-                        title="Avisar no WhatsApp"
-                      >
-                        <MessageCircle size={16} />
-                      </a>
+                      {order.status !== 'CANCELED' && (
+                        <a
+                          href={generateWhatsAppLink(
+                            order.customer.phone,
+                            `Olá ${order.customer.name}, seu pedido #${order.id} mudou para: *${translateStatus(order.status)}*.`
+                          )}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                          title="Avisar no WhatsApp"
+                        >
+                          <MessageCircle size={20} />
+                        </a>
+                      )}
 
-                      {!isPaid && (
+                      {/* Botão Imprimir */}
+                      <button
+                        onClick={() => window.open(`/print/orders/${order.id}`, '_blank')}
+                        className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                        title="Imprimir Recibo"
+                      >
+                        <Printer size={20} />
+                      </button>
+
+                      {/* Botão Receber Pagamento */}
+                      {!isPaid && order.status !== 'CANCELED' && (
                         <button
                           onClick={() => openPaymentModal(order)}
-                          className="bg-blue-600 text-white p-2 rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
+                          className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
                           title="Receber Pagamento"
                         >
-                          <DollarSign size={16} />
+                          <DollarSign size={20} />
+                        </button>
+                      )}
+
+                      {/* Botão Cancelar */}
+                       {!['CANCELED', 'DELIVERED'].includes(order.status) && (
+                        <button
+                          onClick={() => handleCancelOrder(order.id)}
+                          className="p-2 text-red-400 hover:bg-red-50 hover:text-red-600 rounded-lg transition-colors"
+                          title="Cancelar Pedido"
+                        >
+                          <XCircle size={20} />
                         </button>
                       )}
                     </div>
                   </td>
-                  <div className="flex gap-2">
-
-                  <button
-                    onClick={() => window.open(`/print/orders/${order.id}`, '_blank')}
-                    className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                    title="Imprimir Recibo"
-                  >
-                    <Printer size={20} />
-                  </button>
-                </div>
                 </tr>
               );
             })}
