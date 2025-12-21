@@ -14,7 +14,6 @@ import {
   DollarSign,
   Wallet,
   AlertCircle,
-  ArrowDownCircle,
   ArrowUpCircle,
 } from "lucide-react";
 

@@ -9,8 +9,6 @@ import {
   ChevronDown,
   MessageCircle,
   XCircle,
-  AlertCircle,
-  Undo2,
 } from "lucide-react";
 import { PaymentModal } from "../components/PaymentModal";
 import { toast } from "sonner";

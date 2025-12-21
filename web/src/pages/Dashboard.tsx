@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../services/api";
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from "recharts";
-import { Loader2, DollarSign, Wallet, TrendingUp, Info, ShoppingBag } from "lucide-react";
+import { Loader2, DollarSign, Wallet, Info, ShoppingBag } from "lucide-react";
 
 interface DashboardData {
   financial: {
@@ -109,7 +109,7 @@ export function Dashboard() {
                     paddingAngle={5}
                     dataKey="value"
                   >
-                    {data?.chart.map((entry, index) => (
+                    {data?.chart.map((_, index) => (
                       <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                     ))}
                   </Pie>
