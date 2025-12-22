@@ -11,12 +11,17 @@ interface IAuthRequest {
 
 export class AuthenticateUserService {
   async execute({ email, password }: IAuthRequest) {
-    // 1. Verificar se o usuário existe
     const user = await prisma.user.findUnique({
       where: { email },
     });
 
     if (!user) {
+      throw new Error("Email ou senha incorretos");
+    }
+
+    const passwordMatch = await compare(password, user.password);
+
+    if (!passwordMatch) {
       throw new Error("Email ou senha incorretos");
     }
 
