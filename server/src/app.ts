@@ -6,9 +6,15 @@ import { errorHandler } from "./shared/middlewares/errorHandler";
 const app = express();
 
 app.use(cors({
-  origin: process.env.CORS_ORIGIN || "http://localhost:5173", 
+  origin: [
+    /^https:\/\/lavanderia-perfil.*\.vercel\.app$/, 
+    "http://localhost:5173", 
+    process.env.CORS_ORIGIN
+  ].filter((origin): origin is string | RegExp => !!origin),
+  
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true 
 }));
 
 app.use(express.json());
