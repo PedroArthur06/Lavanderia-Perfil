@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { api } from "../services/api";
 import logoImg from "../assets/logo.png";
-import { Lock, Mail, Loader2, LogIn } from "lucide-react";
+import { Lock, Mail, Loader2, LogIn, AlertCircle } from "lucide-react";
 
 export function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [debugInfo, setDebugInfo] = useState<any>(null);
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
@@ -17,25 +18,38 @@ export function Login() {
     }
 
     setLoading(true);
+    setDebugInfo(null);
 
     try {
-      // 1. Bate na rota de login
+      console.log("🔵 Tentando login...");
+      console.log("📍 API URL:", import.meta.env.VITE_API_URL || "http://localhost:3333");
+      
       const response = await api.post("/auth/login", {
         email,
         password,
       });
 
+      console.log("✅ Login bem-sucedido:", response.data);
+
       const { token, user } = response.data;
 
-      // 2. Salva o token e o user no LocalStorage
       localStorage.setItem("@lavanderia:token", token);
       localStorage.setItem("@lavanderia:user", JSON.stringify(user));
 
-      // 3. Força o recarregamento para entrar no Dashboard
-      // (Poderíamos usar useNavigate, mas window.location garante reset de estado limpo)
       window.location.href = "/";
     } catch (error: any) {
-      console.error(error);
+      console.error("❌ Erro no login:", error);
+      
+      const debugData = {
+        message: error.response?.data?.error || error.message,
+        status: error.response?.status,
+        apiUrl: import.meta.env.VITE_API_URL,
+        hasToken: !!localStorage.getItem("@lavanderia:token"),
+        credentials: { email: email.substring(0, 3) + "***" }
+      };
+      
+      setDebugInfo(debugData);
+      
       alert(
         error.response?.data?.error ||
           "Erro ao fazer login. Verifique seus dados."
@@ -48,7 +62,6 @@ export function Login() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100 px-4">
       <div className="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md border border-gray-100">
-        {/* Cabeçalho do Card */}
         <div className="flex flex-col items-center mb-8">
           <img src={logoImg} alt="Lavanderia Perfil" className="h-16 mb-4" />
           <h1 className="text-2xl font-bold text-gray-800">Acesso Restrito</h1>
@@ -57,7 +70,6 @@ export function Login() {
           </p>
         </div>
 
-        {/* Formulário */}
         <form onSubmit={handleLogin} className="space-y-4">
           <div className="space-y-1">
             <label className="text-sm font-medium text-gray-700 ml-1">
@@ -105,6 +117,21 @@ export function Login() {
             )}
           </button>
         </form>
+
+        {/* DEBUG INFO */}
+        {debugInfo && (
+          <div className="mt-4 p-4 bg-red-50 rounded-lg border border-red-200">
+            <div className="flex items-start gap-2">
+              <AlertCircle className="text-red-500 mt-0.5" size={18} />
+              <div className="text-xs font-mono text-red-800">
+                <p className="font-bold mb-1">Debug Info:</p>
+                <pre className="whitespace-pre-wrap">
+                  {JSON.stringify(debugInfo, null, 2)}
+                </pre>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
