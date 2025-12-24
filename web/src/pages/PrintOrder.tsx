@@ -10,17 +10,22 @@ export function PrintOrder() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    api.get(`/orders`).then((res) => {
-      const found = res.data.find((o: any) => o.id === Number(id));
-      setOrder(found);
-      setLoading(false);
-      
-      if (found) {
+    if (!id) return;
+
+    api.get(`/orders/${id}`)
+      .then((res) => {
+        setOrder(res.data);
+        setLoading(false);
+        
         setTimeout(() => {
           window.print();
         }, 500);
-      }
-    });
+      })
+      .catch((error) => {
+        console.error("Erro ao buscar pedido:", error);
+        setOrder(null); 
+        setLoading(false);
+      });
   }, [id]);
 
   if (loading) return <div className="flex justify-center p-10"><Loader2 className="animate-spin" /></div>;
