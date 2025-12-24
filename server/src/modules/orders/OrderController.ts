@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { z } from "zod";
 import { OrderService } from "./OrderService";
 import { OrderStatus } from "@prisma/client";
+import { AppError } from "../../shared/errors/AppError";
 
 const orderService = new OrderService();
 
@@ -27,6 +28,17 @@ export class OrderController {
     });
     return res.status(201).json(order);
   }
+
+  async show(req: Request, res: Response) {
+    const { id } = req.params;
+
+    if (isNaN(Number(id))) {
+      throw new AppError("ID inválido"); 
+    }
+
+    const order = await orderService.findById(Number(id));
+    return res.json(order);
+}
 
   async list(req: Request, res: Response) {
     const orders = await orderService.findAll();

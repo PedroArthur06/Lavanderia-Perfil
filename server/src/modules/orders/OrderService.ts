@@ -13,6 +13,24 @@ interface IOrderRequest {
 }
 
 export class OrderService {
+
+  async findById(id: number) {
+    const order = await prisma.order.findUnique({
+      where: { id },
+      include: {
+        customer: true,
+        items: true,
+        payments: true,
+      },
+    });
+
+    if (!order) {
+      throw new AppError("Pedido não encontrado", 404);
+    }
+
+    return order;
+  }
+
   async create({ customerId, items, discount = 0 }: IOrderRequest) {
     let subtotal = 0;
     const orderItemsData = [];
